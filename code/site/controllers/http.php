@@ -23,6 +23,12 @@ class ApiControllerHttp extends ApiController
 {
 	public $callbackname = 'callback';
 
+	protected $mimeTypes = array(
+		'application/json' => 'json',
+		'application/xml' => 'xml',
+		'application/bson' => 'bson'
+	);
+
 	/**
 	 * Typical view method for MVC based architecture
 	 *
@@ -76,15 +82,13 @@ class ApiControllerHttp extends ApiController
 			jexit();
 		}
 
-		try
-		{
+		try {
 			JResponse::setHeader('status', 200);
 			$resource_response = ApiPlugin::getInstance($name)->fetchResource();
 
+			if ($resource_response instanceof \Exception) throw $resource_response;
 			echo $this->respond($resource_response);
-		}
-		catch (Exception $e)
-		{
+		} catch (Exception $e) {
 			JResponse::setHeader('status', $e->http_code);
 			echo $this->respond($e);
 		}
@@ -111,7 +115,7 @@ class ApiControllerHttp extends ApiController
 			$output = new \stdClass;
 			header("Content-type: application/json");
 
-			if ($response instanceof Exception)
+			if ($response instanceof \Exception)
 			{
 				$output->message = $response->getMessage();
 				$output->code = $response->getCode();
@@ -126,28 +130,19 @@ class ApiControllerHttp extends ApiController
 			die();
 		}
 
-		switch ($accept)
-		{
-			case 'application/json':
-			default:
-				header("Content-type: application/json");
-				$format = 'json';
-			break;
-
-			case 'application/xml':
-				header("Content-type: application/xml");
-				$format = 'xml';
-			break;
+		if (isset($this->mimeTypes[$accept])) {
+			header("Content-Type: $accept");
+			$format = $this->mimeTypes[$accept];
+		} else {
+			header("Content-Type: application/json");
+			$format = 'json';
 		}
 
 		$output_overrride = JPATH_ROOT . '/templates/' . $app->getTemplate() . '/' . $format . '/api.php';
 
-		if (file_exists($output_overrride))
-		{
+		if (file_exists($output_overrride)) {
 			require_once $output_overrride;
-		}
-		else
-		{
+		} else {
 			require_once JPATH_COMPONENT . '/libraries/response/' . $format . 'response.php';
 		}
 
